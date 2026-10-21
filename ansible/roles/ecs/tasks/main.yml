@@ -1,0 +1,25 @@
+---
+- name: Ensure ECS config directory exists
+  ansible.builtin.file:
+    path: /etc/ecs
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Set ECS cluster config
+  ansible.builtin.lineinfile:
+    path: /etc/ecs/ecs.config
+    regexp: '^ECS_CLUSTER='
+    line: "ECS_CLUSTER={{ taskflow_ecs_cluster }}"
+    create: true
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart ECS
+
+- name: Enable ECS service
+  ansible.builtin.service:
+    name: ecs
+    state: started
+    enabled: true

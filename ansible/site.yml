@@ -1,0 +1,9 @@
+---
+- name: Configure TaskFlow ECS hosts
+  hosts: all
+  become: true
+  gather_facts: true
+  roles:
+    - hardening
+    - cloudwatch
+    - ecs

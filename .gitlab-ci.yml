@@ -1,0 +1,163 @@
+stages:
+  - lint
+  - security
+  - test
+  - build
+  - plan
+  - apply
+  - configure
+  - deploy
+  - smoke-test
+
+variables:
+  AWS_DEFAULT_REGION: "ap-south-1"
+  TF_ROOT: "terraform/environments/dev"
+  TF_IN_AUTOMATION: "true"
+  DOCKER_TLS_CERTDIR: "/certs"
+  IMAGE_TAG: "$CI_COMMIT_SHORT_SHA"
+
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH'
+
+terraform-lint:
+  stage: lint
+  image: hashicorp/terraform:1.9
+  script:
+    - terraform -chdir="$TF_ROOT" fmt -check -recursive
+    - terraform -chdir="$TF_ROOT" init -backend=false
+    - terraform -chdir="$TF_ROOT" validate
+
+app-lint:
+  stage: lint
+  image: maven:3.9-eclipse-temurin-21
+  script:
+    - cd app
+    - mvn -B -DskipTests verify
+
+ansible-lint:
+  stage: lint
+  image: python:3.12-slim
+  before_script:
+    - pip install ansible ansible-lint
+    - ansible-galaxy collection install -r ansible/requirements.yml
+  script:
+    - ansible-lint ansible/site.yml
+
+secret-scan:
+  stage: security
+  image: zricethezav/gitleaks:latest
+  script:
+    - gitleaks detect --source . --no-git --redact
+
+terraform-security:
+  stage: security
+  image: bridgecrew/checkov:latest
+  script:
+    - checkov -d terraform --quiet
+  allow_failure: true
+
+app-test:
+  stage: test
+  image: maven:3.9-eclipse-temurin-21
+  script:
+    - cd app
+    - mvn -B clean verify
+  artifacts:
+    when: always
+    paths:
+      - app/target/site/jacoco/
+      - app/target/surefire-reports/
+    reports:
+      junit: app/target/surefire-reports/TEST-*.xml
+
+image-scan:
+  stage: security
+  image: aquasec/trivy:latest
+  needs: ["image-build"]
+  script:
+    - trivy image --exit-code 1 --severity HIGH,CRITICAL "$CI_REGISTRY_IMAGE:$IMAGE_TAG"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+
+image-build:
+  stage: build
+  image: docker:27
+  services:
+    - name: docker:27-dind
+      command: ["--tls=true"]
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin
+  script:
+    - docker build -t "$CI_REGISTRY_IMAGE:$IMAGE_TAG" ./app
+    - docker push "$CI_REGISTRY_IMAGE:$IMAGE_TAG"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: on_success
+    - if: '$CI_COMMIT_BRANCH'
+
+terraform-plan:
+  stage: plan
+  image: hashicorp/terraform:1.9
+  script:
+    - terraform -chdir="$TF_ROOT" init -backend=false
+    - terraform -chdir="$TF_ROOT" plan -input=false -out=tfplan
+    - terraform -chdir="$TF_ROOT" show -no-color tfplan > "$CI_PROJECT_DIR/terraform-plan.txt"
+  artifacts:
+    paths:
+      - terraform-plan.txt
+    expire_in: 1 day
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+
+terraform-apply:
+  stage: apply
+  image: hashicorp/terraform:1.9
+  script:
+    - terraform -chdir="$TF_ROOT" init
+    - terraform -chdir="$TF_ROOT" apply -auto-approve
+  environment:
+    name: dev
+  when: manual
+  allow_failure: false
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE != "merge_request_event"'
+      when: manual
+    - when: never
+
+configure-ansible:
+  stage: configure
+  image: python:3.12-slim
+  before_script:
+    - apt-get update && apt-get install -y openssh-client
+    - pip install ansible
+    - ansible-galaxy collection install -r ansible/requirements.yml
+  script:
+    - ansible-playbook -i ansible/inventory/aws_ec2.yml ansible/site.yml
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE != "merge_request_event"'
+  needs: ["terraform-apply"]
+
+deploy-ecs:
+  stage: deploy
+  image: amazon/aws-cli:2
+  script:
+    - aws ecs update-service --cluster "$ECS_CLUSTER_NAME" --service "$ECS_SERVICE_NAME" --force-new-deployment
+    - aws ecs wait services-stable --cluster "$ECS_CLUSTER_NAME" --services "$ECS_SERVICE_NAME"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE != "merge_request_event"'
+  needs: ["configure-ansible"]
+
+smoke-test:
+  stage: smoke-test
+  image: curlimages/curl:8.10.1
+  script:
+    - test -n "$TASKFLOW_ALB_URL"
+    - curl --fail --silent --show-error "$TASKFLOW_ALB_URL/health"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE != "merge_request_event"'
+  needs: ["deploy-ecs"]

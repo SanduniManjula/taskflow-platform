@@ -1,0 +1,5 @@
+---
+- name: Restart ECS
+  ansible.builtin.service:
+    name: ecs
+    state: restarted

@@ -1,0 +1,39 @@
+# Java
+app/target/
+*.class
+*.log
+.idea/
+.vscode/
+.env
+.env.*
+!.env.example
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+# Ansible
+*.retry
+# OS
+.DS_Store
+
+# Credentials and private keys
+*.pem
+*.key
+credentials
+credentials.*
+.aws/
+
+# Terraform local files
+terraform.tfstate.backup
+
+# Local environment and editor files
+*.swp
+*.swo
+.DS_Store
+taskflow-platform-starter.zip

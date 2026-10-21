@@ -1,0 +1,41 @@
+---
+- name: Ensure security updates tooling is installed
+  ansible.builtin.package:
+    name: dnf-automatic
+    state: present
+  when: ansible_os_family == "RedHat"
+
+- name: Enable automatic security updates
+  ansible.builtin.lineinfile:
+    path: /etc/dnf/automatic.conf
+    regexp: '^apply_updates ='
+    line: 'apply_updates = yes'
+  when: ansible_os_family == "RedHat"
+
+- name: Enable automatic update timer
+  ansible.builtin.service:
+    name: dnf-automatic-install.timer
+    enabled: true
+    state: started
+  when: ansible_os_family == "RedHat"
+
+- name: Disable SSH password authentication
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PasswordAuthentication'
+    line: 'PasswordAuthentication no'
+    validate: 'sshd -t -f %s'
+  notify: Restart sshd
+
+- name: Ensure firewalld is installed
+  ansible.builtin.package:
+    name: firewalld
+    state: present
+
+- name: Start firewalld
+  ansible.builtin.service:
+    name: firewalld
+    state: started
+    enabled: true
+  # Verify AWS/SSM management path before enabling host firewall in a real account.
+  when: taskflow_enable_firewall | default(false) | bool
