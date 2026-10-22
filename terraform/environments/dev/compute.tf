@@ -150,7 +150,11 @@ resource "aws_ecs_service" "app" {
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.app.arn
   desired_count   = 2
-  launch_type     = "EC2"
+
+  capacity_provider_strategy {
+    capacity_provider = aws_ecs_capacity_provider.ec2.name
+    weight            = 1
+  }
 
   deployment_minimum_healthy_percent = 50
   deployment_maximum_percent         = 200
@@ -165,6 +169,9 @@ resource "aws_ecs_service" "app" {
     aws_lb_listener.http,
     aws_ecs_cluster_capacity_providers.main
   ]
+  lifecycle {
+    ignore_changes = [task_definition]
+  }
 }
 
 resource "aws_appautoscaling_target" "ecs" {
@@ -207,7 +214,9 @@ resource "aws_cloudwatch_metric_alarm" "cpu" {
   evaluation_periods  = 5
   threshold           = 80
   comparison_operator = "GreaterThanThreshold"
-  alarm_description   = "Sustained high ECS service CPU; use the bounded vertical-scaling workflow."
+  treat_missing_data  = "notBreaching"
+  alarm_description   = "Sustained high ECS service CPU triggers bounded vertical scaling."
+  alarm_actions       = [aws_lambda_function.vertical_scaler.arn]
 }
 
 resource "aws_cloudwatch_metric_alarm" "memory" {
@@ -223,5 +232,43 @@ resource "aws_cloudwatch_metric_alarm" "memory" {
   evaluation_periods  = 5
   threshold           = 80
   comparison_operator = "GreaterThanThreshold"
-  alarm_description   = "Sustained high ECS service memory; use the bounded vertical-scaling workflow."
+  treat_missing_data  = "notBreaching"
+  alarm_description   = "Sustained high ECS service memory triggers bounded vertical scaling."
+  alarm_actions       = [aws_lambda_function.vertical_scaler.arn]
+}
+
+resource "aws_cloudwatch_metric_alarm" "low_cpu" {
+  alarm_name  = "${local.name}-low-cpu"
+  namespace   = "AWS/ECS"
+  metric_name = "CPUUtilization"
+  dimensions = {
+    ClusterName = aws_ecs_cluster.main.name
+    ServiceName = aws_ecs_service.app.name
+  }
+  statistic           = "Average"
+  period              = 60
+  evaluation_periods  = 5
+  threshold           = 30
+  comparison_operator = "LessThanThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_description   = "Low CPU may trigger scale-down after the Lambda checks both metrics."
+  alarm_actions       = [aws_lambda_function.vertical_scaler.arn]
+}
+
+resource "aws_cloudwatch_metric_alarm" "low_memory" {
+  alarm_name  = "${local.name}-low-memory"
+  namespace   = "AWS/ECS"
+  metric_name = "MemoryUtilization"
+  dimensions = {
+    ClusterName = aws_ecs_cluster.main.name
+    ServiceName = aws_ecs_service.app.name
+  }
+  statistic           = "Average"
+  period              = 60
+  evaluation_periods  = 5
+  threshold           = 30
+  comparison_operator = "LessThanThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_description   = "Low memory may trigger scale-down after the Lambda checks both metrics."
+  alarm_actions       = [aws_lambda_function.vertical_scaler.arn]
 }

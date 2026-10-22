@@ -37,3 +37,14 @@ terraform.tfstate.backup
 *.swo
 .DS_Store
 taskflow-platform-starter.zip
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Generated Lambda deployment packages
+**/vertical_scaler.zip
+
+# Saved Terraform plan files
+tfplan
+**/tfplan
