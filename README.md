@@ -107,3 +107,40 @@ curl -X POST http://localhost:8080/api/tasks \
 - [ ] Review the Terraform plan for unintended changes before any apply.
 - [ ] Review security scan findings and document unresolved issues.
 - [ ] Confirm teardown steps preserve required evidence, data, and Terraform state.
+
+## DevOps vs. Platform Engineering
+
+DevOps is a culture and set of practices that brings software development and IT operations together. It emphasizes collaboration, automation, continuous integration, continuous delivery, testing, monitoring, and shared responsibility for software reliability.
+
+Platform Engineering builds on these practices by creating reusable infrastructure, tools, workflows, and self-service capabilities for development teams. Instead of every team independently configuring infrastructure and deployment pipelines, a platform team provides standardized solutions that improve consistency and developer productivity.
+
+This TaskFlow project demonstrates DevOps through automated application testing, Docker image builds, infrastructure validation, deployment, and health checks. It demonstrates Platform Engineering principles through reusable Terraform infrastructure, Ansible configuration management, and a standardized GitLab CI/CD workflow. These foundations can be extended into an internal developer platform with self-service provisioning, reusable templates, and centralized policy enforcement.
+
+## The Shift Toward DevSecOps
+
+DevSecOps integrates security into every stage of the software delivery lifecycle. Cloud infrastructure, container images, application dependencies, APIs, and CI/CD credentials can all introduce security risks. Detecting problems only before release can increase remediation costs and delay deployments.
+
+DevSecOps addresses these challenges by automating security checks early and continuously, while making security a shared responsibility among development, operations, platform engineering, and security teams.
+
+In TaskFlow, the pipeline includes secret scanning, Terraform security checks, container image scanning, automated tests, and controlled CI/CD variables. These practices help identify potential risks before deployment and improve visibility into security issues.
+
+Security tools do not guarantee that an application is secure. Scan results must be reviewed, false positives investigated, and unresolved findings assessed before release. Credentials must never be committed to source control, and deployment permissions should follow the principle of least privilege.
+
+## Reproducing the Deployment from a Clean AWS Account
+
+The following process summarizes how to reproduce the deployment in a newly prepared AWS account. Exact Terraform paths, variable names, and commands must match the configuration in this repository.
+
+1. Prepare the AWS account, configure billing alerts and security controls, and select the intended region.
+2. Configure AWS CLI authentication using a dedicated IAM role or another approved credential mechanism. Verify the identity with `aws sts get-caller-identity`.
+3. Review the Terraform configuration and bootstrap the remote state backend, if required, before initializing the main environment.
+4. Configure the necessary Terraform variables and GitLab CI/CD variables. Never commit AWS credentials, passwords, `.env` files, Terraform state, or plan files.
+5. Run `terraform init`, `terraform fmt -check`, `terraform validate`, and `terraform plan` from the correct Terraform environment directory. Review the plan before applying changes.
+6. Build the application container and publish a commit-versioned image to Amazon ECR through the configured pipeline.
+7. Apply the approved infrastructure changes using the project's deployment procedure.
+8. Run the Ansible playbook against the intended EC2 hosts and verify that a second run produces no unexpected changes.
+9. Deploy the intended image revision to the ECS service through GitLab CI/CD.
+10. Verify ECS task health, load balancer target health, the application health endpoint, CloudWatch logs, and application functionality.
+11. Review security scan results and scaling evidence. When the environment is no longer needed, review the Terraform destroy plan and remove temporary resources without deleting shared resources or required evidence.
+
+AWS resources such as EC2 instances, RDS databases, NAT gateways, and load balancers may incur charges. Review resource costs before deployment and teardown. A successful Terraform plan does not prove that the application is running; verify the actual deployment and its health.
+
