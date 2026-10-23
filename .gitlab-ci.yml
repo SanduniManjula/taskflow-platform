@@ -114,7 +114,7 @@ terraform-plan:
     name: hashicorp/terraform:1.9
     entrypoint: [""]
   script:
-    - terraform -chdir="$TF_ROOT" init -backend=false
+    - terraform -chdir="$TF_ROOT" init -input=false -reconfigure
     - terraform -chdir="$TF_ROOT" plan -input=false -out=tfplan
     - terraform -chdir="$TF_ROOT" show -no-color tfplan > "$CI_PROJECT_DIR/terraform-plan.txt"
   artifacts:
