@@ -110,7 +110,9 @@ image-build:
 
 terraform-plan:
   stage: plan
-  image: hashicorp/terraform:1.9
+  image:
+    name: hashicorp/terraform:1.9
+    entrypoint: [""]
   script:
     - terraform -chdir="$TF_ROOT" init -backend=false
     - terraform -chdir="$TF_ROOT" plan -input=false -out=tfplan
@@ -125,7 +127,9 @@ terraform-plan:
 
 terraform-apply:
   stage: apply
-  image: hashicorp/terraform:1.9
+  image:
+    name: hashicorp/terraform:1.9
+    entrypoint: [""]
   script:
     - terraform -chdir="$TF_ROOT" init
     - terraform -chdir="$TF_ROOT" apply -auto-approve
