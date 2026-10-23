@@ -18,6 +18,8 @@ Evidence location on Windows:
 | Ansible idempotency | Second run reported zero changes | Verified |
 | CloudWatch logging | ECS agent events were received from EC2 instances | Verified |
 | Terraform outputs | Outputs identified deployed infrastructure resources | Verified |
+| GitLab deployment jobs | Terraform apply, ECS deployment, and smoke-test jobs passed | Verified |
+| CI/CD screenshots | Evidence screenshots were added to the repository | Verify image contents before submission |
 
 ## Screenshot inventory
 
@@ -65,14 +67,15 @@ Evidence location on Windows:
 
 ## Still requiring verification
 
-- A successful GitLab CI/CD pipeline run.
-- GitLab merge-request and protected-branch rules.
+- A fully successful GitLab pipeline, including review and resolution of the failing `secret-scan` job.
+- GitLab merge-request approvals, protected-branch settings, and pipeline rules.
 - Docker Compose startup and application/database health.
-- ECR image tagging with the commit SHA in a verified pipeline.
-- A real CloudWatch alarm transition triggering vertical scaling.
+- ECR image tagging with the commit SHA and confirmation that the running ECS task uses the intended image.
+- A real CloudWatch alarm transition and confirmation that it triggers the intended vertical-scaling action.
 - End-to-end CRUD operations against the deployed environment.
-- Security scan findings and any unresolved issues.
-- Review of screenshot contents for clarity and suitability before submission.
+- Security scan findings, remediation, and any remaining unresolved issues.
+- Review of screenshot contents for clarity, accuracy, and suitability before submission.
+- Confirmation that the architecture documentation and evidence index are complete and committed.
 
 ## Infrastructure caution
 
