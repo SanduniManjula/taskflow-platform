@@ -50,13 +50,17 @@ ansible-lint:
 
 secret-scan:
   stage: security
-  image: zricethezav/gitleaks:latest
+  image:
+    name: zricethezav/gitleaks:latest
+    entrypoint: [""]
   script:
     - gitleaks detect --source . --no-git --redact
 
 terraform-security:
   stage: security
-  image: bridgecrew/checkov:latest
+  image:
+    name: bridgecrew/checkov:latest
+    entrypoint: [""]
   script:
     - checkov -d terraform --quiet
   allow_failure: true
