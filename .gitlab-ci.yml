@@ -25,7 +25,7 @@ workflow:
 terraform-lint:
   stage: lint
   image:
-    name: hashicorp/terraform:1.9
+    name: hashicorp/terraform:1.10
     entrypoint: [""]
   script:
     - terraform -chdir="$TF_ROOT" fmt -check -recursive
@@ -111,7 +111,7 @@ image-build:
 terraform-plan:
   stage: plan
   image:
-    name: hashicorp/terraform:1.9
+    name: hashicorp/terraform:1.10
     entrypoint: [""]
   script:
     - terraform -chdir="$TF_ROOT" init -input=false -reconfigure
@@ -128,7 +128,7 @@ terraform-plan:
 terraform-apply:
   stage: apply
   image:
-    name: hashicorp/terraform:1.9
+    name: hashicorp/terraform:1.10
     entrypoint: [""]
   script:
     - terraform -chdir="$TF_ROOT" init
