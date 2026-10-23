@@ -1,0 +1,2 @@
+# False positive: Ansible EC2 inventory grouping expression, not a credential.
+ansible/inventory/aws_ec2.yml:generic-api-key:8
