@@ -86,7 +86,7 @@ image-scan:
     entrypoint: [""]
   needs: ["image-build"]
   script:
-    - trivy image --exit-code 1 --severity HIGH,CRITICAL "$CI_REGISTRY_IMAGE:$IMAGE_TAG"
+    - trivy image --username "$CI_REGISTRY_USER" --password "$CI_REGISTRY_PASSWORD" --exit-code 1 --severity HIGH,CRITICAL "$CI_REGISTRY_IMAGE:$IMAGE_TAG"
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
