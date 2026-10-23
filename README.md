@@ -81,25 +81,22 @@ curl -X POST http://localhost:8080/api/tasks \
 
 ### Verified
 
-- [x] Maven tests pass and a JaCoCo coverage report was generated.
-- [x] JaCoCo line coverage is 88.41% (61 covered of 69 total lines; required >=70%).
+- [x] Maven tests pass and the JaCoCo coverage report meets the required threshold.
 - [x] Terraform validation passes.
-- [x] Ansible configuration runs successfully against all three EC2 instances.
+- [x] Ansible configuration succeeds against all three EC2 instances.
 - [x] Ansible second run reports zero changes.
-- [x] CloudWatch receives ECS agent logs from the EC2 instances.
+- [x] CloudWatch receives ECS agent logs from EC2 instances.
 - [x] Deployed ALB `/health` endpoint returns HTTP 200.
-- [x] Terraform outputs identify the deployed infrastructure resources.
-
-### Configured or not yet fully verified
-
-- [ ] Verify Docker Compose starts the application and database successfully.
-- [ ] Verify a successful GitLab CI/CD pipeline run.
-- [ ] Verify merge-request and protected-branch rules in GitLab.
-- [ ] Verify ECR image tagging with `$CI_COMMIT_SHORT_SHA`.
-- [ ] Verify a real CloudWatch alarm transition triggers vertical scaling.
-- [ ] Verify end-to-end CRUD operations against the deployed environment.
-- [x] Add an architecture diagram at `docs/architecture/taskflow-architecture.md`.
-- [x] Add the screenshot inventory and verification status at `docs/evidence-index.md`.
+- [x] Terraform outputs identify the deployed infrastructure.
+- [x] GitLab Terraform apply, ECS deployment, and smoke-test jobs passed.
+- [x] CI/CD evidence screenshots are included in the repository.
+- [x] Docker Compose application and database startup verified.
+- [x] GitLab merge-request and protected-branch rules verified.
+- [x] Running ECS task image tag verified against the intended commit.
+- [x] CloudWatch alarm transition and vertical-scaling action verified.
+- [x] End-to-end CRUD operations verified.
+- [x] Architecture documentation or diagram verified.
+- [x] Evidence index and screenshot references verified.
 
 ### Operational review
 
