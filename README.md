@@ -6,6 +6,8 @@ A Spring Boot task-management API deployed to Amazon ECS on EC2, backed by RDS P
 
 ## Architecture
 
+See [the TaskFlow architecture diagram](docs/architecture/taskflow-architecture.md).
+
 - Public ALB in two public subnets.
 - ECS cluster on EC2 capacity in private subnets across two AZs.
 - RDS PostgreSQL in private database subnets.
@@ -77,13 +79,31 @@ curl -X POST http://localhost:8080/api/tasks \
 
 ## Evidence checklist
 
-- [ ] `mvn test` and JaCoCo coverage report >=70%.
-- [ ] `docker compose up --build` and `/health` returns HTTP 200.
-- [ ] `terraform fmt -check`, `validate`, and a reviewed plan.
-- [ ] Ansible first run changes hosts; second run reports zero changes.
-- [ ] MR pipeline has no apply/deploy jobs.
-- [ ] Protected default-branch apply requires manual approval.
-- [ ] ECR image uses `$CI_COMMIT_SHORT_SHA`.
-- [ ] ECS task definition revision changes after vertical scaling.
-- [ ] ALB smoke test passes.
-- [ ] Runbook, ADR, architecture diagram, and teardown steps are documented.
+### Verified
+
+- [x] Maven tests pass and a JaCoCo coverage report was generated.
+- [x] JaCoCo line coverage is 88.41% (61 covered of 69 total lines; required >=70%).
+- [x] Terraform validation passes.
+- [x] Ansible configuration runs successfully against all three EC2 instances.
+- [x] Ansible second run reports zero changes.
+- [x] CloudWatch receives ECS agent logs from the EC2 instances.
+- [x] Deployed ALB `/health` endpoint returns HTTP 200.
+- [x] Terraform outputs identify the deployed infrastructure resources.
+
+### Configured or not yet fully verified
+
+- [ ] Verify Docker Compose starts the application and database successfully.
+- [ ] Verify a successful GitLab CI/CD pipeline run.
+- [ ] Verify merge-request and protected-branch rules in GitLab.
+- [ ] Verify ECR image tagging with `$CI_COMMIT_SHORT_SHA`.
+- [ ] Verify a real CloudWatch alarm transition triggers vertical scaling.
+- [ ] Verify end-to-end CRUD operations against the deployed environment.
+- [x] Add an architecture diagram at `docs/architecture/taskflow-architecture.md`.
+- [x] Add the screenshot inventory and verification status at `docs/evidence-index.md`.
+
+### Operational review
+
+- [x] Document the ASG capacity difference: live desired capacity is 3, while the Terraform plan proposes 2.
+- [ ] Review the Terraform plan for unintended changes before any apply.
+- [ ] Review security scan findings and document unresolved issues.
+- [ ] Confirm teardown steps preserve required evidence, data, and Terraform state.
