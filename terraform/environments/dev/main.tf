@@ -172,6 +172,7 @@ resource "aws_lb_target_group" "app" {
   }
 }
 
+#checkov:skip=CKV_AWS_103:Temporary assessment limitation; ALB uses AWS-generated DNS and no matching ACM certificate is available. HTTP remains unencrypted until HTTPS is configured.
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.app.arn
   port              = 80
