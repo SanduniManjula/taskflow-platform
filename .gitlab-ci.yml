@@ -3,6 +3,7 @@ stages:
   - security
   - test
   - build
+  - image-security
   - plan
   - apply
   - configure
@@ -73,7 +74,7 @@ app-test:
       junit: app/target/surefire-reports/TEST-*.xml
 
 image-scan:
-  stage: security
+  stage: image-security
   image: aquasec/trivy:latest
   needs: ["image-build"]
   script:
