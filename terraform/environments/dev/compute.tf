@@ -4,6 +4,12 @@ resource "aws_launch_template" "ecs" {
   image_id      = data.aws_ami.ecs.id
   instance_type = var.ec2_instance_type
 
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 1
+  }
+
   iam_instance_profile {
     name = aws_iam_instance_profile.ec2.name
   }
@@ -114,7 +120,7 @@ resource "aws_ecs_task_definition" "app" {
 
     environment = [
       { name = "PORT", value = tostring(var.app_port) },
-      { name = "SPRING_DATASOURCE_URL", value = "jdbc:postgresql://${aws_db_instance.postgres.address}:5432/${var.db_name}" },
+      { name = "SPRING_DATASOURCE_URL", value = "jdbc:postgresql://${aws_db_instance.postgres.address}:5432/${var.db_name}?sslmode=require" },
       { name = "SPRING_DATASOURCE_USERNAME", value = var.db_username },
       { name = "DDL_AUTO", value = "update" }
     ]

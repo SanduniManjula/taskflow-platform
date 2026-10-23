@@ -70,18 +70,14 @@ resource "aws_security_group" "alb" {
   vpc_id      = module.network.vpc_id
 
   ingress {
+    description = "Public HTTP traffic to the application load balancer"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+  egress = []
 }
 
 resource "aws_security_group" "ecs" {
@@ -99,11 +95,22 @@ resource "aws_security_group" "ecs" {
 
   # ECS instances use outbound connections for ECR, CloudWatch, Secrets Manager and package updates.
   egress {
+    description = "Outbound access for ECS image pulls, logs, secrets and updates"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+}
+
+
+resource "aws_vpc_security_group_egress_rule" "alb_to_ecs" {
+  security_group_id            = aws_security_group.alb.id
+  referenced_security_group_id = aws_security_group.ecs.id
+  ip_protocol                  = "tcp"
+  from_port                    = 32768
+  to_port                      = 65535
+  description                  = "ALB traffic to ECS dynamic host ports"
 }
 
 resource "aws_security_group" "db" {
@@ -112,48 +119,75 @@ resource "aws_security_group" "db" {
   vpc_id      = module.network.vpc_id
 
   ingress {
+    description     = "PostgreSQL access from ECS instances only"
     from_port       = 5432
     to_port         = 5432
     protocol        = "tcp"
     security_groups = [aws_security_group.ecs.id]
   }
 
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+  egress = []
+}
+
+resource "aws_db_parameter_group" "postgres" {
+  name_prefix = "${local.name}-postgres-"
+  family      = "postgres16"
+  description = "PostgreSQL 16 query logging configuration"
+
+  parameter {
+    name  = "log_statement"
+    value = "ddl"
   }
+
+  parameter {
+    name  = "log_min_duration_statement"
+    value = "1000"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+  parameter {
+    name  = "rds.force_ssl"
+    value = "1"
+  }
+
 }
 
 resource "aws_db_instance" "postgres" {
-  identifier              = "${local.name}-postgres"
-  engine                  = "postgres"
-  engine_version          = "16"
-  instance_class          = var.db_instance_class
-  allocated_storage       = 20
-  max_allocated_storage   = 30
-  storage_encrypted       = true
-  db_name                 = var.db_name
-  username                = var.db_username
-  password                = var.db_password
-  port                    = 5432
-  db_subnet_group_name    = aws_db_subnet_group.db.name
-  vpc_security_group_ids  = [aws_security_group.db.id]
-  publicly_accessible     = false
-  multi_az                = false
-  backup_retention_period = 1
-  deletion_protection     = false
-  skip_final_snapshot     = true
-  apply_immediately       = true
+  identifier                      = "${local.name}-postgres"
+  engine                          = "postgres"
+  parameter_group_name            = aws_db_parameter_group.postgres.name
+  enabled_cloudwatch_logs_exports = ["postgresql"]
+  engine_version                  = "16"
+  auto_minor_version_upgrade      = true
+  instance_class                  = var.db_instance_class
+  allocated_storage               = 20
+  max_allocated_storage           = 30
+  storage_encrypted               = true
+  db_name                         = var.db_name
+  username                        = var.db_username
+  password                        = var.db_password
+  port                            = 5432
+  db_subnet_group_name            = aws_db_subnet_group.db.name
+  vpc_security_group_ids          = [aws_security_group.db.id]
+  publicly_accessible             = false
+  multi_az                        = false
+  backup_retention_period         = 1
+  deletion_protection             = true
+  skip_final_snapshot             = true
+  apply_immediately               = true
+  copy_tags_to_snapshot           = true
 }
 
 resource "aws_lb" "app" {
-  name               = substr("${local.name}-alb", 0, 32)
-  load_balancer_type = "application"
-  internal           = false
-  subnets            = module.network.public_subnet_ids
-  security_groups    = [aws_security_group.alb.id]
+  name                       = substr("${local.name}-alb", 0, 32)
+  load_balancer_type         = "application"
+  internal                   = false
+  subnets                    = module.network.public_subnet_ids
+  security_groups            = [aws_security_group.alb.id]
+  drop_invalid_header_fields = true
+  enable_deletion_protection = true
 }
 
 resource "aws_lb_target_group" "app" {
@@ -172,8 +206,8 @@ resource "aws_lb_target_group" "app" {
   }
 }
 
-#checkov:skip=CKV_AWS_103:Temporary assessment limitation; ALB uses AWS-generated DNS and no matching ACM certificate is available. HTTP remains unencrypted until HTTPS is configured.
 resource "aws_lb_listener" "http" {
+  #checkov:skip=CKV_AWS_103:Temporary assessment limitation; ALB uses AWS-generated DNS and no matching ACM certificate is available. HTTP remains unencrypted until HTTPS is configured.
   load_balancer_arn = aws_lb.app.arn
   port              = 80
   protocol          = "HTTP"

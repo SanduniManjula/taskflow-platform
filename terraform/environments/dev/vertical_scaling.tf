@@ -85,14 +85,44 @@ resource "aws_iam_role_policy" "vertical_scaler_ecs" {
   })
 }
 
+
+resource "aws_sqs_queue" "vertical_scaler_dlq" {
+  name                    = "${local.name}-vertical-scaler-dlq"
+  sqs_managed_sse_enabled = true
+}
+
+resource "aws_iam_role_policy" "vertical_scaler_dlq" {
+  name = "${local.name}-vertical-scaler-dlq"
+  role = aws_iam_role.vertical_scaler.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["sqs:SendMessage"]
+      Resource = aws_sqs_queue.vertical_scaler_dlq.arn
+    }]
+  })
+}
+
 resource "aws_lambda_function" "vertical_scaler" {
-  function_name    = "${local.name}-vertical-scaler"
-  description      = "Bounded ECS task vertical scaling for TaskFlow"
-  role             = aws_iam_role.vertical_scaler.arn
-  handler          = "vertical_scaler.handler"
-  runtime          = "python3.12"
-  timeout          = 30
-  memory_size      = 128
+  function_name                  = "${local.name}-vertical-scaler"
+  description                    = "Bounded ECS task vertical scaling for TaskFlow"
+  role                           = aws_iam_role.vertical_scaler.arn
+  handler                        = "vertical_scaler.handler"
+  runtime                        = "python3.12"
+  timeout                        = 30
+  memory_size                    = 128
+  reserved_concurrent_executions = 5
+
+  tracing_config {
+    mode = "Active"
+  }
+
+  dead_letter_config {
+    target_arn = aws_sqs_queue.vertical_scaler_dlq.arn
+  }
+
   filename         = data.archive_file.vertical_scaler.output_path
   source_code_hash = data.archive_file.vertical_scaler.output_base64sha256
 
@@ -109,7 +139,8 @@ resource "aws_lambda_function" "vertical_scaler" {
 
   depends_on = [
     aws_iam_role_policy_attachment.vertical_scaler_logs,
-    aws_iam_role_policy.vertical_scaler_ecs
+    aws_iam_role_policy.vertical_scaler_ecs,
+    aws_iam_role_policy.vertical_scaler_dlq
   ]
 }
 

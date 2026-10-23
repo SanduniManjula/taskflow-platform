@@ -123,3 +123,70 @@ resource "aws_route_table_association" "db" {
   subnet_id      = aws_subnet.db[count.index].id
   route_table_id = aws_route_table.db.id
 }
+
+resource "aws_default_security_group" "this" {
+  vpc_id = aws_vpc.this.id
+
+  # Explicitly remove the default allow-all self-ingress and egress rules.
+  ingress = []
+  egress  = []
+
+  tags = {
+    Name = "${var.name}-default-sg"
+  }
+}
+
+
+# VPC Flow Logs for network traffic visibility.
+resource "aws_cloudwatch_log_group" "vpc_flow" {
+  name              = "/vpc/${var.name}/flow-logs"
+  retention_in_days = 30
+}
+
+resource "aws_iam_role" "vpc_flow_logs" {
+  name = "${var.name}-vpc-flow-logs"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Service = "vpc-flow-logs.amazonaws.com"
+      }
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "vpc_flow_logs" {
+  name = "${var.name}-vpc-flow-logs"
+  role = aws_iam_role.vpc_flow_logs.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogStreams"
+        ]
+        Resource = "${aws_cloudwatch_log_group.vpc_flow.arn}:*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["logs:DescribeLogGroups"]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_flow_log" "this" {
+  vpc_id               = aws_vpc.this.id
+  traffic_type         = "ALL"
+  log_destination_type = "cloud-watch-logs"
+  log_destination      = aws_cloudwatch_log_group.vpc_flow.arn
+  iam_role_arn         = aws_iam_role.vpc_flow_logs.arn
+}
