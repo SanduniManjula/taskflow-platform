@@ -81,7 +81,9 @@ app-test:
 
 image-scan:
   stage: image-security
-  image: aquasec/trivy:latest
+  image:
+    name: aquasec/trivy:latest
+    entrypoint: [""]
   needs: ["image-build"]
   script:
     - trivy image --exit-code 1 --severity HIGH,CRITICAL "$CI_REGISTRY_IMAGE:$IMAGE_TAG"
