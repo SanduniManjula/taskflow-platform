@@ -113,7 +113,16 @@ terraform-plan:
   image:
     name: hashicorp/terraform:1.10
     entrypoint: [""]
+  id_tokens:
+    AWS_ID_TOKEN:
+      aud: https://gitlab.com
   script:
+    - umask 077
+    - printf '%s' "$AWS_ID_TOKEN" > "$CI_PROJECT_DIR/aws_web_identity_token"
+    - export AWS_WEB_IDENTITY_TOKEN_FILE="$CI_PROJECT_DIR/aws_web_identity_token"
+    - export AWS_REGION="ap-south-1"
+    - export AWS_DEFAULT_REGION="ap-south-1"
+    - trap 'rm -f "$CI_PROJECT_DIR/aws_web_identity_token"' EXIT
     - terraform -chdir="$TF_ROOT" init -input=false -reconfigure
     - terraform -chdir="$TF_ROOT" plan -input=false -out=tfplan
     - terraform -chdir="$TF_ROOT" show -no-color tfplan > "$CI_PROJECT_DIR/terraform-plan.txt"
