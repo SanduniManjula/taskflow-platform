@@ -6,13 +6,13 @@
 
 - name: Ensure CloudWatch agent config directory exists
   ansible.builtin.file:
-    path: /opt/aws/amazon-cloudwatch-agent/etc
+    path: /opt/taskflow
     state: directory
     mode: '0755'
 
 - name: Install CloudWatch agent configuration
   ansible.builtin.copy:
-    dest: /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+    dest: /opt/taskflow/amazon-cloudwatch-agent.json
     owner: root
     group: root
     mode: '0644'
@@ -23,9 +23,19 @@
             "files": {
               "collect_list": [
                 {
-                  "file_path": "/var/log/messages",
+                  "file_path": "/var/log/ecs/ecs-agent.log",
                   "log_group_name": "{{ taskflow_ec2_log_group | default('/ec2/taskflow-dev') }}",
-                  "log_stream_name": "{instance_id}/messages"
+                  "log_stream_name": "{instance_id}/ecs-agent"
+                },
+                {
+                  "file_path": "/var/log/ecs/ecs-init.log",
+                  "log_group_name": "{{ taskflow_ec2_log_group | default('/ec2/taskflow-dev') }}",
+                  "log_stream_name": "{instance_id}/ecs-init"
+                },
+                {
+                  "file_path": "/var/log/cloud-init-output.log",
+                  "log_group_name": "{{ taskflow_ec2_log_group | default('/ec2/taskflow-dev') }}",
+                  "log_stream_name": "{instance_id}/cloud-init-output"
                 }
               ]
             }
