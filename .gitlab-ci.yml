@@ -24,7 +24,9 @@ workflow:
 
 terraform-lint:
   stage: lint
-  image: hashicorp/terraform:1.9
+  image:
+    name: hashicorp/terraform:1.9
+    entrypoint: [""]
   script:
     - terraform -chdir="$TF_ROOT" fmt -check -recursive
     - terraform -chdir="$TF_ROOT" init -backend=false
